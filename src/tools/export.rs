@@ -30,7 +30,7 @@ impl Export {
         &self,
         state: Arc<Mutex<AppState>>,
     ) -> Result<CallToolResult, CallToolError> {
-        let _state = state.lock().await;
+        let state = state.lock().await;
 
         let fmt = self.format.to_lowercase();
         if fmt != "png" && fmt != "svg" {
@@ -50,18 +50,13 @@ impl Export {
         };
 
         let ext = if fmt == "png" { ".png" } else { ".svg" };
-        let output = self
-            .output
-            .as_deref()
-            .unwrap_or_else(|| {
-                if source_label == "file" {
-                    source_arg.strip_suffix(".typ").unwrap_or(source_arg)
-                } else {
-                    "output"
-                }
-            })
-            .to_owned()
-            + ext;
+        let output = crate::tools::compile::resolve_output_path(
+            self.output.as_deref(),
+            source_label,
+            source_arg,
+            state.output_path.as_deref(),
+            ext,
+        );
 
         let result = if source_label == "file" {
             run_typst_export(source_arg, &output, &fmt, self.pixel_per_page)

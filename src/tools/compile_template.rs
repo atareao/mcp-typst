@@ -52,18 +52,13 @@ impl CompileTemplate {
             )]));
         };
 
-        let output = self
-            .output
-            .as_deref()
-            .unwrap_or_else(|| {
-                if source_label == "file" {
-                    source_arg.strip_suffix(".typ").unwrap_or(source_arg)
-                } else {
-                    "output"
-                }
-            })
-            .to_owned()
-            + ".pdf";
+        let output = crate::tools::compile::resolve_output_path(
+            self.output.as_deref(),
+            source_label,
+            source_arg,
+            state.output_path.as_deref(),
+            ".pdf",
+        );
 
         let source_content = if source_label == "file" {
             match std::fs::read_to_string(source_arg) {

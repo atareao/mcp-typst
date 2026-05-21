@@ -10,6 +10,7 @@ A Model Context Protocol (MCP) server that enables AI assistants to compile, exp
 - **Query** document metadata and content via Typst selectors
 - **List fonts** available to Typst, with optional filtering
 - **Embedded output** — return compiled files as base64-encoded resources for direct consumption by AI clients
+- **Configurable output directory** — set `TYPST_OUTPUT_PATH` to control where files are written
 - **Dual transport** — stdio (default) or HTTP
 
 ## Tools
@@ -46,7 +47,7 @@ The binary will be at `target/release/mcp-typst`.
 docker build -t atareao/mcp-typst .
 ```
 
-The image includes Typst pre-installed.
+The image includes Typst pre-installed in a minimal Alpine runtime.
 
 ## Usage
 
@@ -55,9 +56,20 @@ The image includes Typst pre-installed.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TYPST_TEMPLATE_PATH` | `./templates` | Directory containing `.typ` template files |
+| `TYPST_OUTPUT_PATH` | *(unset)* | Directory where compiled PDFs, PNGs, and SVGs are saved. When set, output files are written here using the source filename. When unset, files are written next to the source file. |
 | `MCP_TRANSPORT` | `stdio` | Transport mode: `stdio` or `http` |
 | `MCP_HOST` | `127.0.0.1` | HTTP bind address (HTTP transport only) |
 | `MCP_PORT` | `3003` | HTTP port (HTTP transport only) |
+
+### Output Path Resolution
+
+The output file path is determined in the following order:
+
+1. **Explicit `output` parameter** — used as-is
+2. **`TYPST_OUTPUT_PATH` set** — `{TYPST_OUTPUT_PATH}/{basename}.{ext}`
+3. **`TYPST_OUTPUT_PATH` unset** — `{source_dir}/{basename}.{ext}` (same directory as the source file)
+
+This is especially useful in containerized environments where you want all compiled files to land in a specific mounted volume.
 
 ### Stdio Transport (Default)
 
@@ -85,7 +97,8 @@ Add to your Claude Desktop MCP configuration:
     "typst": {
       "command": "mcp-typst",
       "env": {
-        "TYPST_TEMPLATE_PATH": "/path/to/templates"
+        "TYPST_TEMPLATE_PATH": "/path/to/templates",
+        "TYPST_OUTPUT_PATH": "/path/to/output"
       }
     }
   }
@@ -97,10 +110,13 @@ Add to your Claude Desktop MCP configuration:
 ```bash
 docker run -i --rm \
   -e TYPST_TEMPLATE_PATH=/templates \
+  -e TYPST_OUTPUT_PATH=/output \
   -v /path/to/templates:/templates:ro \
   -v /path/to/output:/output \
   atareao/mcp-typst
 ```
+
+All compiled files (PDF, PNG, SVG) will be written to the mounted `/output` directory.
 
 ## Examples
 

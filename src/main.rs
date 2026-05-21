@@ -18,6 +18,7 @@ use tokio::sync::Mutex;
 
 pub struct AppState {
     pub template_path: String,
+    pub output_path: Option<String>,
 }
 
 pub struct TypstServerHandler {
@@ -133,7 +134,12 @@ async fn main() {
     let template_path =
         std::env::var("TYPST_TEMPLATE_PATH").unwrap_or_else(|_| "./templates".to_string());
 
-    let state = Arc::new(Mutex::new(AppState { template_path }));
+    let output_path = std::env::var("TYPST_OUTPUT_PATH").ok();
+
+    let state = Arc::new(Mutex::new(AppState {
+        template_path,
+        output_path,
+    }));
 
     let transport = std::env::var("MCP_TRANSPORT").unwrap_or_else(|_| "stdio".to_string());
 

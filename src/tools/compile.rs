@@ -3,6 +3,7 @@ use rust_mcp_sdk::schema::{
     BlobResourceContents, CallToolResult, EmbeddedResource, EmbeddedResourceResource, TextContent,
     schema_utils::CallToolError,
 };
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -29,7 +30,7 @@ impl Compile {
         &self,
         state: Arc<Mutex<AppState>>,
     ) -> Result<CallToolResult, CallToolError> {
-        let _state = state.lock().await;
+        let state = state.lock().await;
 
         let (source_label, source_arg) = if let Some(ref path) = self.file {
             ("file", path.as_str())
@@ -41,18 +42,13 @@ impl Compile {
             )]));
         };
 
-        let output = self
-            .output
-            .as_deref()
-            .unwrap_or_else(|| {
-                if source_label == "file" {
-                    source_arg.strip_suffix(".typ").unwrap_or(source_arg)
-                } else {
-                    "output"
-                }
-            })
-            .to_owned()
-            + ".pdf";
+        let output = resolve_output_path(
+            self.output.as_deref(),
+            source_label,
+            source_arg,
+            state.output_path.as_deref(),
+            ".pdf",
+        );
 
         let result = if source_label == "file" {
             run_typst_compile(source_arg, &output)
@@ -74,6 +70,41 @@ impl Compile {
                 format!("❌ Compilation failed: {}", e),
             )])),
         }
+    }
+}
+
+pub fn resolve_output_path(
+    explicit_output: Option<&str>,
+    source_label: &str,
+    source_arg: &str,
+    output_dir: Option<&str>,
+    extension: &str,
+) -> String {
+    if let Some(path) = explicit_output {
+        return path.to_owned();
+    }
+
+    let basename = if source_label == "file" {
+        Path::new(source_arg)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("output")
+    } else {
+        "output"
+    };
+
+    if let Some(dir) = output_dir {
+        return format!("{}/{}{}", dir, basename, extension);
+    }
+
+    if source_label == "file" {
+        source_arg
+            .strip_suffix(".typ")
+            .unwrap_or(source_arg)
+            .to_owned()
+            + extension
+    } else {
+        format!("output{}", extension)
     }
 }
 
@@ -151,6 +182,72 @@ pub fn build_embedded_result(
 mod tests {
     use super::*;
     use rust_mcp_sdk::schema::ContentBlock;
+
+    #[test]
+    fn resolve_output_path_should_use_explicit_output_when_provided() {
+        let result = resolve_output_path(
+            Some("/custom/path.pdf"),
+            "file",
+            "source.typ",
+            Some("/output"),
+            ".pdf",
+        );
+        assert_eq!(result, "/custom/path.pdf");
+    }
+
+    #[test]
+    fn resolve_output_path_should_use_output_dir_with_file_source() {
+        let result = resolve_output_path(
+            None,
+            "file",
+            "/data/docs/report.typ",
+            Some("/output"),
+            ".pdf",
+        );
+        assert_eq!(result, "/output/report.pdf");
+    }
+
+    #[test]
+    fn resolve_output_path_should_use_output_dir_with_inline_content() {
+        let result = resolve_output_path(None, "content", "", Some("/output"), ".pdf");
+        assert_eq!(result, "/output/output.pdf");
+    }
+
+    #[test]
+    fn resolve_output_path_should_fallback_to_source_dir_when_no_output_dir() {
+        let result = resolve_output_path(None, "file", "/data/docs/report.typ", None, ".pdf");
+        assert_eq!(result, "/data/docs/report.pdf");
+    }
+
+    #[test]
+    fn resolve_output_path_should_fallback_to_output_when_no_file_and_no_output_dir() {
+        let result = resolve_output_path(None, "content", "", None, ".pdf");
+        assert_eq!(result, "output.pdf");
+    }
+
+    #[test]
+    fn resolve_output_path_should_work_with_png_extension() {
+        let result = resolve_output_path(
+            None,
+            "file",
+            "/data/docs/slides.typ",
+            Some("/output"),
+            ".png",
+        );
+        assert_eq!(result, "/output/slides.png");
+    }
+
+    #[test]
+    fn resolve_output_path_should_work_with_svg_extension() {
+        let result = resolve_output_path(
+            None,
+            "file",
+            "/data/docs/diagram.typ",
+            Some("/output"),
+            ".svg",
+        );
+        assert_eq!(result, "/output/diagram.svg");
+    }
 
     struct TempFile(std::path::PathBuf);
 
@@ -302,6 +399,7 @@ mod tests {
 
         let state = Arc::new(Mutex::new(AppState {
             template_path: "./templates".to_string(),
+            output_path: None,
         }));
 
         let result = compile.call_tool(state).await.unwrap();
@@ -343,6 +441,7 @@ mod tests {
 
         let state = Arc::new(Mutex::new(AppState {
             template_path: "./templates".to_string(),
+            output_path: None,
         }));
 
         let result = compile.call_tool(state).await.unwrap();
@@ -355,5 +454,41 @@ mod tests {
         } else {
             panic!("Expected TextContent");
         }
+    }
+
+    #[tokio::test]
+    async fn compile_with_output_path_should_use_configured_directory() {
+        let output_dir = "/tmp/test-output-dir";
+        let _ = std::fs::create_dir_all(output_dir);
+
+        let compile = Compile {
+            file: None,
+            content: Some("= Test\nOutput path test".to_string()),
+            output: None,
+            embed: Some(false),
+        };
+
+        let state = Arc::new(Mutex::new(AppState {
+            template_path: "./templates".to_string(),
+            output_path: Some(output_dir.to_string()),
+        }));
+
+        let result = compile.call_tool(state).await.unwrap();
+
+        assert_eq!(result.content.len(), 1);
+        if let ContentBlock::TextContent(tc) = &result.content[0] {
+            assert!(tc.text.contains("compiled successfully"));
+            assert!(tc.text.contains(&format!("{}/output.pdf", output_dir)));
+        } else {
+            panic!("Expected TextContent");
+        }
+
+        assert!(
+            std::path::Path::new(&format!("{}/output.pdf", output_dir)).exists(),
+            "PDF should be in the configured output directory"
+        );
+
+        let _ = std::fs::remove_file(format!("{}/output.pdf", output_dir));
+        let _ = std::fs::remove_dir(output_dir);
     }
 }
