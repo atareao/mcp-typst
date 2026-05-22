@@ -39,6 +39,6 @@ RUN apk add --update --no-cache \
 COPY --from=builder /app/target/release/mcp-typst /usr/local/bin/
 
 USER mcp
-EXPOSE 3003
+EXPOSE 3007
 
 CMD ["mcp-typst"]

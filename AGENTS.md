@@ -14,7 +14,7 @@
 
 - `TYPST_TEMPLATE_PATH` — directory containing `.typ` template files (default: `./templates`).
 - `MCP_TRANSPORT` — `stdio` (default) or `http`.
-- `MCP_HOST` / `MCP_PORT` — HTTP bind address (default: `127.0.0.1:3003`).
+- `MCP_HOST` / `MCP_PORT` — HTTP bind address (default: `127.0.0.1:3007`).
 
 ## Tools
 

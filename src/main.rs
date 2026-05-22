@@ -186,7 +186,7 @@ async fn run_http(state: Arc<Mutex<AppState>>) {
     let port: u16 = std::env::var("MCP_PORT")
         .ok()
         .and_then(|p| p.parse().ok())
-        .unwrap_or(3003);
+        .unwrap_or(3007);
 
     let host = std::env::var("MCP_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
 

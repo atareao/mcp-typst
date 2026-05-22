@@ -1,0 +1,26 @@
+[Unit]
+Description=Todo
+After=network-online.target
+
+[Container]
+Image=localhost/atareao/todo-typst:latest
+ContainerName=todo
+PublishPort=3007:3007
+
+# Environment
+Environment=RUST_LOG=mcp_typst=debug
+Environment=TODO_DB_PATH=/data/todo.db
+Environment=MCP_TRANSPORT=http
+Environment=MCP_PORT=3007
+
+# Volumes
+Volume=/data/rust/mcp-todo/data:/data
+
+# Networks
+Network=traefik.network
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target
