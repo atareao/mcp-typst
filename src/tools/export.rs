@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
 use rust_mcp_sdk::macros::{JsonSchema, mcp_tool};
 use rust_mcp_sdk::schema::{CallToolResult, TextContent, schema_utils::CallToolError};
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use crate::AppState;
 
@@ -96,6 +98,13 @@ fn run_typst_export(
     fmt: &str,
     pixel_per_page: Option<u32>,
 ) -> Result<(), String> {
+    if let Some(parent) = std::path::Path::new(output).parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create output directory: {}", e))?;
+    }
+
     let mut cmd = std::process::Command::new("typst");
     cmd.args(["compile", input, output]);
     cmd.args(["--format", fmt]);

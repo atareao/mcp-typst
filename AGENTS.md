@@ -28,3 +28,11 @@
 ## Requirements
 
 - `typst` CLI must be installed and on `$PATH` for compilation to work.
+
+<!-- SKILLS_START -->
+<skill>
+    <name>mcp-typst-http-testing</name>
+    <description>Use when testing the MCP Typst server via HTTP. Covers session initialization, curl commands for all tools, response parsing, and embedded PDF extraction.</description>
+    <location>file:///data/rust/mcp-typst/docs/skills/http-testing.md</location>
+</skill>
+<!-- SKILLS_END -->

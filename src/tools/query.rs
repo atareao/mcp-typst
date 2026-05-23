@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
 use rust_mcp_sdk::macros::{JsonSchema, mcp_tool};
 use rust_mcp_sdk::schema::{CallToolResult, TextContent, schema_utils::CallToolError};
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use crate::AppState;
 
@@ -26,10 +28,8 @@ pub struct Query {
 impl Query {
     pub async fn call_tool(
         &self,
-        state: Arc<Mutex<AppState>>,
+        _state: Arc<Mutex<AppState>>,
     ) -> Result<CallToolResult, CallToolError> {
-        let _state = state.lock().await;
-
         let (source_label, source_arg) = if let Some(ref path) = self.file {
             ("file", path.as_str())
         } else if let Some(ref content) = self.content {

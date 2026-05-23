@@ -1,11 +1,13 @@
+use std::path::Path;
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
 use rust_mcp_sdk::macros::{JsonSchema, mcp_tool};
 use rust_mcp_sdk::schema::{
     BlobResourceContents, CallToolResult, EmbeddedResource, EmbeddedResourceResource, TextContent,
     schema_utils::CallToolError,
 };
-use std::path::Path;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use crate::AppState;
 
@@ -73,6 +75,10 @@ impl Compile {
     }
 }
 
+/// Determines the final output file path based on priority:
+/// 1. Explicit `output` parameter (used as-is)
+/// 2. `TYPST_OUTPUT_PATH` (base directory) + source file basename
+/// 3. Default: same directory as source file (or `output.{ext}` for inline content)
 pub fn resolve_output_path(
     explicit_output: Option<&str>,
     source_label: &str,
@@ -109,6 +115,13 @@ pub fn resolve_output_path(
 }
 
 fn run_typst_compile(input: &str, output: &str) -> Result<(), String> {
+    if let Some(parent) = std::path::Path::new(output).parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create output directory: {}", e))?;
+    }
+
     let cmd = std::process::Command::new("typst")
         .args(["compile", input, output])
         .output()
@@ -138,6 +151,8 @@ fn compile_from_content(content: &str, output: &str) -> Result<(), String> {
     result
 }
 
+/// Reads a compiled file from disk, encodes it as base64, and returns it as an
+/// `EmbeddedResource` content block alongside a success message.
 pub fn build_embedded_result(
     output: &str,
     mime_type: &str,

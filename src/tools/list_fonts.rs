@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
 use rust_mcp_sdk::macros::{JsonSchema, mcp_tool};
 use rust_mcp_sdk::schema::{CallToolResult, TextContent, schema_utils::CallToolError};
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use crate::AppState;
 
@@ -18,10 +20,8 @@ pub struct ListFonts {
 impl ListFonts {
     pub async fn call_tool(
         &self,
-        state: Arc<Mutex<AppState>>,
+        _state: Arc<Mutex<AppState>>,
     ) -> Result<CallToolResult, CallToolError> {
-        let _state = state.lock().await;
-
         let result = run_typst_fonts_list();
 
         match result {
@@ -73,7 +73,7 @@ impl ListFonts {
 
 fn run_typst_fonts_list() -> Result<Vec<String>, String> {
     let output_result = std::process::Command::new("typst")
-        .args(["fonts", "list"])
+        .args(["fonts"])
         .output()
         .map_err(|e| format!("Failed to run typst command: {}", e))?;
 

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use rust_mcp_schema::{
     CompleteResult, ListResourceTemplatesResult, ListResourcesResult, ReadResourceRequestParams,
@@ -13,11 +15,13 @@ use rust_mcp_sdk::schema::{
     ServerCapabilitiesTools, schema_utils::CallToolError,
 };
 use rust_mcp_sdk::{McpServer, StdioTransport, TransportOptions};
-use std::sync::Arc;
 use tokio::sync::Mutex;
 
+/// Shared application state available to all tool handlers.
 pub struct AppState {
+    /// Directory containing `.typ` template files.
     pub template_path: String,
+    /// Optional directory for compiled output files (PDF, PNG, SVG).
     pub output_path: Option<String>,
 }
 

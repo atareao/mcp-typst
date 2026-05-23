@@ -59,7 +59,7 @@ The image includes Typst pre-installed in a minimal Alpine runtime.
 | `TYPST_OUTPUT_PATH` | *(unset)* | Directory where compiled PDFs, PNGs, and SVGs are saved. When set, output files are written here using the source filename. When unset, files are written next to the source file. |
 | `MCP_TRANSPORT` | `stdio` | Transport mode: `stdio` or `http` |
 | `MCP_HOST` | `127.0.0.1` | HTTP bind address (HTTP transport only) |
-| `MCP_PORT` 3007 `3007` | HTTP port (HTTP transport only) |
+| `MCP_PORT` | `3007` | HTTP port (HTTP transport only) |
 
 ### Output Path Resolution
 

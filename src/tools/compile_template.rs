@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
 use rust_mcp_sdk::macros::{JsonSchema, mcp_tool};
 use rust_mcp_sdk::schema::{CallToolResult, TextContent, schema_utils::CallToolError};
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use crate::AppState;
 
@@ -31,13 +33,16 @@ impl CompileTemplate {
         let state = state.lock().await;
         let template_path = &state.template_path;
 
-        let template_file = format!("{}/{}.typ", template_path, self.template);
+        let template_file = std::path::Path::new(template_path)
+            .join(&self.template)
+            .with_extension("typ");
 
-        if !std::path::Path::new(&template_file).exists() {
+        if !template_file.exists() {
             return Ok(CallToolResult::text_content(vec![TextContent::from(
                 format!(
                     "❌ Template '{}' not found at '{}'. Use 'list_templates' to see available templates.",
-                    self.template, template_file
+                    self.template,
+                    template_file.display()
                 ),
             )]));
         }
@@ -75,7 +80,7 @@ impl CompileTemplate {
 
         let combined = format!(
             "#import \"{}\": *\n\n{}",
-            template_file.replace('\\', "/"),
+            template_file.to_string_lossy().replace('\\', "/"),
             source_content
         );
 
@@ -118,6 +123,13 @@ fn compile_from_content(content: &str, output: &str) -> Result<(), String> {
 }
 
 fn run_typst_compile(input: &str, output: &str) -> Result<(), String> {
+    if let Some(parent) = std::path::Path::new(output).parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create output directory: {}", e))?;
+    }
+
     let cmd = std::process::Command::new("typst")
         .args(["compile", input, output])
         .output()
